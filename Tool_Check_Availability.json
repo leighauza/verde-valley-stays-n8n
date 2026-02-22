@@ -1,0 +1,238 @@
+{
+  "name": "Verde Valley (Check Availability)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "check-availability",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "e64ea2f5-2184-4a38-bb41-92cc42a6f723",
+      "name": "Webhook",
+      "webhookId": "0631d408-03c5-4971-8714-3d96392f0ced"
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "calendar": {
+          "__rl": true,
+          "value": "={{ $json.calendarId }}",
+          "mode": "id"
+        },
+        "limit": 5,
+        "timeMin": "={{ $json.checkIn }}",
+        "timeMax": "={{ $json.checkOut }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleCalendar",
+      "typeVersion": 1.3,
+      "position": [
+        416,
+        0
+      ],
+      "id": "39d82d26-2fac-4f0e-9a90-b1c44e8d4ffc",
+      "name": "Get many events",
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleCalendarOAuth2Api": {
+          "id": "YOUR_CREDENTIAL_ID",
+          "name": "Google Calendar account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "f9c35a8f-4c29-4c6c-b76d-cc44b7fec05a",
+              "leftValue": "={{ $input.first().json }}",
+              "rightValue": "0",
+              "operator": {
+                "type": "object",
+                "operation": "empty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        608,
+        0
+      ],
+      "id": "b990452c-e39f-44df-9fc5-a981fb75207e",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "jsCode": "const property = $('Find Calendar').item.json.property;\nconst checkIn = $('Find Calendar').item.json.checkIn;\nconst checkOut = $('Find Calendar').item.json.checkOut;\n\nreturn [{\n  json: {\n    available: true,\n    property: property,\n    check_in: checkIn,\n    check_out: checkOut,\n    message: `Yes! ${property} is available from ${checkIn} to ${checkOut}.`\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        816,
+        -96
+      ],
+      "id": "ffb930f0-dc57-4751-8400-7dfad31678f9",
+      "name": "Code in JavaScript1"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Map property names to calendar IDs\nconst calendarMap = {\n  \"The Glasshouse\": \"YOUR_GLASSHOUSE_CALENDAR_ID\",\n  \"The River Cottage\": \"YOUR_RIVER_COTTAGE_CALENDAR_ID\",\n  \"The Olive Lodge\": \"YOUR_OLIVE_LODGE_CALENDAR_ID\",\n  \"The Barn Loft\": \"YOUR_BARN_LOFT_CALENDAR_ID\",\n  \"The Potter\u2019s Cabin\": \"8e8072d46292d0a7c0eb4e137d27f2ddd672d44b800eef410e59c985ffc85098@group.calendar.google.com \",\n  \"The Stargazer\u2019s Pod\": \"6a0a5f989f29ab88ff5d3e9e2010dd32505fe871a467760b73b25fbfe84b4eb5@group.calendar.google.com\"\n};\n\n// Get input from webhook\nconst property = $input.first().json.body.property_name;\nconst checkIn = $input.first().json.body.check_in_date;\nconst checkOut = $input.first().json.body.check_out_date;\n\n// Find calendar ID\nconst calendarId = calendarMap[$input.first().json.body.property_name];\n\nreturn [{\n  json: {\n    calendarId: calendarId,\n    checkIn: checkIn,\n    checkOut: checkOut,\n    property: property\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        208,
+        0
+      ],
+      "id": "51d22493-efa8-48f7-b067-febdd4d16687",
+      "name": "Find Calendar"
+    },
+    {
+      "parameters": {
+        "jsCode": "const property = $('Find Calendar').item.json.property;\nconst checkIn = $('Find Calendar').item.json.checkIn;\nconst checkOut = $('Find Calendar').item.json.checkOut;\n\nreturn [{\n  json: {\n    available: false,\n    property: property,\n    check_in: checkIn,\n    check_out: checkOut,\n    message: `Sorry, ${property} is already booked for ${checkIn} to ${checkOut}. Would you like to check other dates or explore our other properties?`\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        816,
+        96
+      ],
+      "id": "28f7a3c0-7d3e-496b-ac55-48905f1f879b",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        1024,
+        96
+      ],
+      "id": "feffa2aa-6ce0-4262-9435-cd694ed1faa0",
+      "name": "Respond to Webhook"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        1024,
+        -96
+      ],
+      "id": "7a269659-b333-4c8c-a3ca-ce681ad0fbfd",
+      "name": "Respond to Webhook1"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Find Calendar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get many events": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Find Calendar": {
+      "main": [
+        [
+          {
+            "node": "Get many events",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript1": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "f20c7e5f-3a36-468a-9b08-9f2ceaca2256",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "YOUR_INSTANCE_ID"
+  },
+  "id": "YaTXom0mKLcWDIjU",
+  "tags": []
+}

@@ -1,0 +1,148 @@
+{
+  "name": "Verde Valley (Create Booking)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "create-booking",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "1f9f6827-1b49-47d6-8807-b1dc0f02e6be",
+      "name": "Webhook",
+      "webhookId": "f62d505d-89ae-46b0-b679-6f7a914b3527"
+    },
+    {
+      "parameters": {
+        "calendar": {
+          "__rl": true,
+          "value": "={{ $json.calendarId }}",
+          "mode": "id"
+        },
+        "start": "={{ $json.checkIn }}",
+        "end": "={{ $json.checkOut }}",
+        "additionalFields": {
+          "description": "=Guest: {{ $json.guestName }}\nEmail: {{ $json.guestEmail }}\nPhone: {{ $json.guestPhone }}",
+          "summary": "=Booking: {{ $json.guestName }}"
+        }
+      },
+      "type": "n8n-nodes-base.googleCalendar",
+      "typeVersion": 1.3,
+      "position": [
+        416,
+        0
+      ],
+      "id": "23430d00-dff6-4745-8406-f6d073e9f0b0",
+      "name": "Create an event",
+      "credentials": {
+        "googleCalendarOAuth2Api": {
+          "id": "YOUR_CREDENTIAL_ID",
+          "name": "Google Calendar account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const property = $('Map').first().json.property;\nconst guestName = $('Map').first().json.guestName;\nconst checkIn = $('Map').first().json.checkIn;\nconst checkOut = $('Map').first().json.checkOut;\nconst eventId = $input.first().json.id; // Google Calendar event ID\n\nreturn [{\n  json: {\n    success: true,\n    booking_id: eventId,\n    property: property,\n    guest_name: guestName,\n    check_in: checkIn,\n    check_out: checkOut,\n    message: `Booking confirmed! ${guestName} has booked ${property} from ${checkIn} to ${checkOut}. Confirmation ID: ${eventId}`\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        624,
+        0
+      ],
+      "id": "692b6a40-a748-489b-9ff5-7f53f4c4248f",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        832,
+        0
+      ],
+      "id": "353922bc-a3fc-4e94-868c-d3e01bf9bbd7",
+      "name": "Respond to Webhook"
+    },
+    {
+      "parameters": {
+        "jsCode": "const calendarMap = {\n  \"The Glasshouse\": \"YOUR_GLASSHOUSE_CALENDAR_ID\",\n  \"The River Cottage\": \"YOUR_RIVER_COTTAGE_CALENDAR_ID\",\n  \"The Olive Lodge\": \"YOUR_OLIVE_LODGE_CALENDAR_ID\",\n  \"The Barn Loft\": \"YOUR_BARN_LOFT_CALENDAR_ID\",\n  \"The Potter\u2019s Cabin\": \"8e8072d46292d0a7c0eb4e137d27f2ddd672d44b800eef410e59c985ffc85098@group.calendar.google.com \",\n  \"The Stargazer\u2019s Pod\": \"6a0a5f989f29ab88ff5d3e9e2010dd32505fe871a467760b73b25fbfe84b4eb5@group.calendar.google.com\"\n};\n\nconst property = $input.first().json.body.property_name;\nconst checkIn = $input.first().json.body.check_in_date;\nconst checkOut = $input.first().json.body.check_out_date;\nconst guestName = $input.first().json.body.guest_name;\nconst guestEmail = $input.first().json.body.guest_email || \"\";\nconst guestPhone = $input.first().json.body.guest_phone || \"\";\n\nconst calendarId = calendarMap[$input.first().json.body.property_name];\n\nreturn [{\n  json: {\n    calendarId: calendarId,\n    checkIn: checkIn,\n    checkOut: checkOut,\n    property: property,\n    guestName: guestName,\n    guestEmail: guestEmail,\n    guestPhone: guestPhone\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        208,
+        0
+      ],
+      "id": "1e09d941-df7a-4e19-83e9-d1a0b22abccf",
+      "name": "Map"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Map",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create an event": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Map": {
+      "main": [
+        [
+          {
+            "node": "Create an event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "84443855-7da0-4d0b-999b-a32337d1f202",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "YOUR_INSTANCE_ID"
+  },
+  "id": "HbpzE7Ec9udfQm8M",
+  "tags": []
+}

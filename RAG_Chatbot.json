@@ -1,0 +1,964 @@
+{
+  "name": "Verde Valley Stays (RAG Chatbot)",
+  "nodes": [
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $('Edit Fields').item.json.text }}",
+        "options": {
+          "systemMessage": "=Recent Conversation:\n{{ $('Aggregate').first().json.data_aggregate.map(m => m.role + ': ' + m.text).join('\\n') }}\n\nBackground:\nYou are a friendly and knowledgeable assistant for Verde Valley Stays, a boutique eco-lodging business with a main farm resort and six themed Airbnb homes. Guests come to you with questions about stays, amenities, bookings, and activities.\n\nIMPORTANT: Always reference the Recent Conversation above for context about the guest, including any personal information they've shared (name, email, phone, preferences).\n\nAvailable Tools:\n1. Supabase Vector Store (guest_info) - Search for property information, amenities, policies, and general questions\n2. check_availability - Check if a property is available for specific dates\n3. create_booking - Create a booking for a guest (use guest info from Recent Conversation if already provided)\n4. cancel_booking - Cancel an existing booking (use guest name and check-in date from Recent Conversation if available)\n\nInstructions:\n1. ALWAYS check Recent Conversation first for guest information (name, email, contact details, booking details) before asking again\n2. For availability questions, use the check_availability tool\n3. For booking requests:\n   - Guest asks about availability \u2192 Automatically interpret dates as 2025.\n   - If guest info (name, email) was mentioned in Recent Conversation, use it directly\n   - If not mentioned, politely ask for: full name and email (phone optional)\n   - Then use create_booking tool with the information\n4. For cancellation requests:\n   - Extract guest name and property/date from Recent Conversation if available\n   - If missing info, politely ask for: property name and check-in date\n   - Then use cancel_booking tool\n5. For general questions about properties/amenities, use the Supabase Vector Store\n6. Keep answers warm, concise, and direct (1-3 brief paragraphs)\n7. Never mention tool names or internal processes to guests\n\nWorkflow for Bookings:\n- Guest asks about availability \u2192 Use check_availability tool\n- Property available \u2192 Ask if they'd like to book\n- Guest confirms \u2192 Check Recent Conversation for their name/email\n- If found in conversation \u2192 Use create_booking with that info\n- If not found \u2192 Ask for name and email, then use create_booking\n- After booking confirmed \u2192 Tell guest about confirmation email with payment & check-in info\n\nWorkflow for Cancellations:\n- Guest asks to cancel \u2192 Check Recent Conversation for their name and booking details\n- If found \u2192 Use cancel_booking with that info\n- If not found \u2192 Ask for property name and check-in date, then use cancel_booking\n\nTone Examples:\n\"Absolutely! Check-in starts at 2 PM, and you're welcome to arrive anytime after.\"\n\"Yes, we do! Pets are allowed in select homes like the Olive Lodge and River Cottage.\"\n\"Perfect! I can book The Glasshouse for you, John. Let me get that confirmed.\"\n\"I've cancelled your booking for The Glasshouse on December 10. Is there anything else I can help you with?\"\n\nResponse Style:\nWarm, natural, and efficient \u2014 like a kind resort concierge who remembers guest details and makes booking seamless."
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2.2,
+      "position": [
+        1168,
+        304
+      ],
+      "id": "e4381d86-1fda-470f-935f-e866a4ea4bfc",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "claude-sonnet-4-20250514",
+          "cachedResultName": "Claude 4 Sonnet"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatAnthropic",
+      "typeVersion": 1.3,
+      "position": [
+        1072,
+        512
+      ],
+      "id": "224ca7ab-7e7d-48e6-ba42-4f635a386726",
+      "name": "Anthropic Chat Model",
+      "credentials": {
+        "anthropicApi": {
+          "id": "10VXpQZiPczpZgot",
+          "name": "Anthropic account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "updates": [
+          "message"
+        ],
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        1104,
+        -128
+      ],
+      "id": "eb16a115-5410-46c0-9756-bd485f031d47",
+      "name": "Telegram Trigger",
+      "webhookId": "1c9614c4-0fd8-4737-a830-1821f142a3ce",
+      "credentials": {
+        "telegramApi": {
+          "id": "htvlAhXoLLcfW39X",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "c8449486-e234-43f9-ac80-71ce59a78073",
+              "name": "user_id",
+              "value": "={{ $json.message.from.id }}",
+              "type": "number"
+            },
+            {
+              "id": "6c6c3b5c-525a-4cc7-a8ad-db0e2b7f5b89",
+              "name": "chat_id",
+              "value": "={{ $json.message.chat.id }}",
+              "type": "number"
+            },
+            {
+              "id": "e783d776-9e4f-40b7-a419-aedbfcb82cfd",
+              "name": "text",
+              "value": "={{ $json.message.text }}",
+              "type": "string"
+            },
+            {
+              "id": "9016a617-ba15-41ba-9e94-d6d38140cd82",
+              "name": "timestamp",
+              "value": "={{ new Date($json.message.date * 1000).toISOString() }}",
+              "type": "string"
+            },
+            {
+              "id": "d5000090-f0ab-405e-bbb8-e244265df9e9",
+              "name": "message_id",
+              "value": "={{ $json.message.message_id }}",
+              "type": "number"
+            },
+            {
+              "id": "e10010e5-bca1-449d-972d-aa0c73ec2ed6",
+              "name": "update_id",
+              "value": "={{ $json.update_id }}",
+              "type": "number"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1328,
+        -128
+      ],
+      "id": "d3b4316e-cbc4-451a-9a19-0e85f5bf49c1",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {
+        "useCustomSchema": true,
+        "operation": "getAll",
+        "tableId": "users",
+        "returnAll": true,
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "user_id",
+              "condition": "eq",
+              "keyValue": "={{ $json.user_id }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        1520,
+        -128
+      ],
+      "id": "efeb0832-bde6-4cfc-a6ae-82347cb01d02",
+      "name": "Get many rows",
+      "alwaysOutputData": true,
+      "credentials": {
+        "supabaseApi": {
+          "id": "0aBuPoQpYSudWGK7",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "31d5611d-3fc1-488e-aba7-0213cf275e3a",
+              "leftValue": "={{ $json }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "object",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1712,
+        -128
+      ],
+      "id": "214701e5-9a23-4bcc-8d88-d5e49f7d649b",
+      "name": "If",
+      "alwaysOutputData": false
+    },
+    {
+      "parameters": {
+        "tableId": "chat_logs",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "user_id",
+              "fieldValue": "={{ $('Edit Fields').item.json.user_id }}"
+            },
+            {
+              "fieldId": "chat_id",
+              "fieldValue": "={{ $('Edit Fields').item.json.chat_id }}"
+            },
+            {
+              "fieldId": "message_id",
+              "fieldValue": "={{ $('Edit Fields').item.json.message_id }}"
+            },
+            {
+              "fieldId": "update_id",
+              "fieldValue": "={{ $('Edit Fields').item.json.update_id }}"
+            },
+            {
+              "fieldId": "role",
+              "fieldValue": "={{ $('Telegram Trigger').item.json.message.from.is_bot }}"
+            },
+            {
+              "fieldId": "text",
+              "fieldValue": "={{ $('Edit Fields').item.json.text }}"
+            },
+            {
+              "fieldId": "timestamp",
+              "fieldValue": "={{ $('Edit Fields').item.json.timestamp }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        1152,
+        80
+      ],
+      "id": "e01c1fa0-0c03-4028-a0a8-019964b9b733",
+      "name": "Log Chat",
+      "credentials": {
+        "supabaseApi": {
+          "id": "0aBuPoQpYSudWGK7",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "tableId": "users",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "user_id",
+              "fieldValue": "={{ $('Edit Fields').item.json.user_id }}"
+            },
+            {
+              "fieldId": "chat_id",
+              "fieldValue": "={{ $('Edit Fields').item.json.chat_id }}"
+            },
+            {
+              "fieldId": "first_name",
+              "fieldValue": "={{ $('Telegram Trigger').item.json.message.from.first_name }}"
+            },
+            {
+              "fieldId": "last_name",
+              "fieldValue": "={{ $('Telegram Trigger').item.json.message.from.last_name }}"
+            },
+            {
+              "fieldId": "language_code",
+              "fieldValue": "={{ $('Telegram Trigger').item.json.message.from.language_code }}"
+            },
+            {
+              "fieldId": "created_at",
+              "fieldValue": "={{ $now }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        1984,
+        -112
+      ],
+      "id": "11e44fb9-2ba3-4df7-975a-d9239eb1fabd",
+      "name": "Insert User",
+      "credentials": {
+        "supabaseApi": {
+          "id": "0aBuPoQpYSudWGK7",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "tableId": "minimal_context",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "user_id",
+              "fieldValue": "={{ $json.user_id }}"
+            },
+            {
+              "fieldId": "chat_id",
+              "fieldValue": "={{ $json.chat_id }}"
+            },
+            {
+              "fieldId": "message_id",
+              "fieldValue": "={{ $('Edit Fields').item.json.message_id }}"
+            },
+            {
+              "fieldId": "update_id",
+              "fieldValue": "={{ $('Edit Fields').item.json.update_id }}"
+            },
+            {
+              "fieldId": "role",
+              "fieldValue": "={{ $json.role }}"
+            },
+            {
+              "fieldId": "text",
+              "fieldValue": "={{ $('Edit Fields').item.json.text }}"
+            },
+            {
+              "fieldId": "timestamp",
+              "fieldValue": "={{ $('Edit Fields').item.json.timestamp }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        1312,
+        80
+      ],
+      "id": "d6880287-8e86-4306-9add-dc13f8c9ab80",
+      "name": "Minimal Context",
+      "credentials": {
+        "supabaseApi": {
+          "id": "0aBuPoQpYSudWGK7",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://nafsyznbzeiairpdduup.supabase.co/rest/v1/rpc/trim_minimal_context",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "YOUR_SUPABASE_SERVICE_KEY"
+            },
+            {
+              "name": "Authorization",
+              "value": "YOUR_SUPABASE_SERVICE_KEY"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"p_user_id\": \"{{ $json.user_id }}\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1472,
+        80
+      ],
+      "id": "1f9b09d1-4a8c-44c0-8c42-a8dcd97cf863",
+      "name": "Keep 10"
+    },
+    {
+      "parameters": {
+        "sortFieldsUi": {
+          "sortField": [
+            {
+              "fieldName": "timestamp",
+              "order": "descending"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.sort",
+      "typeVersion": 1,
+      "position": [
+        1792,
+        80
+      ],
+      "id": "cafb21da-044a-4852-8fff-ae2924eb36df",
+      "name": "Sort"
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "minimal_context",
+        "returnAll": true,
+        "matchType": "allFilters",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "user_id",
+              "condition": "eq",
+              "keyValue": "={{ $('Edit Fields').item.json.user_id }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        1632,
+        80
+      ],
+      "id": "3dd527a3-f042-4d99-a8b0-063f0b97c4a9",
+      "name": "Load Minimal Context",
+      "credentials": {
+        "supabaseApi": {
+          "id": "0aBuPoQpYSudWGK7",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "aggregate": "aggregateAllItemData",
+        "destinationFieldName": "data_aggregate",
+        "options": {
+          "includeBinaries": false
+        }
+      },
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [
+        1984,
+        80
+      ],
+      "id": "d08b5d79-fa26-40b9-894e-660fc3f1526a",
+      "name": "Aggregate"
+    },
+    {
+      "parameters": {
+        "mode": "retrieve-as-tool",
+        "toolDescription": "Use this tool to answer questions about Verde Valley",
+        "tableName": {
+          "__rl": true,
+          "value": "guest_info",
+          "mode": "list",
+          "cachedResultName": "guest_info"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.vectorStoreSupabase",
+      "typeVersion": 1.3,
+      "position": [
+        1328,
+        512
+      ],
+      "id": "7831bfed-5ec2-472e-9ee3-d88b53be9952",
+      "name": "Supabase Vector Store1",
+      "credentials": {
+        "supabaseApi": {
+          "id": "0aBuPoQpYSudWGK7",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.embeddingsOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        1248,
+        688
+      ],
+      "id": "8e923707-5f7b-4e9e-8cdb-476af487de4e",
+      "name": "Embeddings OpenAI1",
+      "credentials": {
+        "openAiApi": {
+          "id": "lx95WT6pljZFkLQZ",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "tableId": "chat_logs",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "user_id",
+              "fieldValue": "={{ $('Edit Fields').item.json.user_id }}"
+            },
+            {
+              "fieldId": "chat_id",
+              "fieldValue": "={{ $('Edit Fields').item.json.chat_id }}"
+            },
+            {
+              "fieldId": "role",
+              "fieldValue": "assistant"
+            },
+            {
+              "fieldId": "text",
+              "fieldValue": "={{ $json.output }}"
+            },
+            {
+              "fieldId": "timestamp",
+              "fieldValue": "={{ $now }} }}"
+            },
+            {
+              "fieldId": "update_id",
+              "fieldValue": "={{ $('Edit Fields').item.json.update_id }}"
+            },
+            {
+              "fieldId": "message_id",
+              "fieldValue": "={{ null }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        1520,
+        304
+      ],
+      "id": "149e6b35-6fd5-4213-b433-e3dff7eab9fb",
+      "name": "Create a row",
+      "credentials": {
+        "supabaseApi": {
+          "id": "0aBuPoQpYSudWGK7",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "tableId": "minimal_context",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "user_id",
+              "fieldValue": "={{ $('Edit Fields').item.json.user_id }}"
+            },
+            {
+              "fieldId": "chat_id",
+              "fieldValue": "={{ $('Edit Fields').item.json.chat_id }}"
+            },
+            {
+              "fieldId": "role",
+              "fieldValue": "assistant"
+            },
+            {
+              "fieldId": "text",
+              "fieldValue": "={{ $('AI Agent').item.json.output }}"
+            },
+            {
+              "fieldId": "timestamp",
+              "fieldValue": "={{ $now }} }}"
+            },
+            {
+              "fieldId": "update_id",
+              "fieldValue": "={{ $('Edit Fields').item.json.update_id }}"
+            },
+            {
+              "fieldId": "message_id",
+              "fieldValue": "={{ null }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        1680,
+        304
+      ],
+      "id": "35d691c3-7155-47f3-ab5e-effdfc7d407c",
+      "name": "Minimal Context (Return)",
+      "credentials": {
+        "supabaseApi": {
+          "id": "0aBuPoQpYSudWGK7",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://nafsyznbzeiairpdduup.supabase.co/rest/v1/rpc/trim_minimal_context",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "YOUR_SUPABASE_SERVICE_KEY"
+            },
+            {
+              "name": "Authorization",
+              "value": "YOUR_SUPABASE_SERVICE_KEY"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"p_user_id\": \"{{ $json.user_id }}\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1840,
+        304
+      ],
+      "id": "3e4a3088-4a2d-4962-a7ad-3dfdeee0ff58",
+      "name": "Keep "
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Edit Fields').item.json.chat_id }}",
+        "text": "={{ $('AI Agent').item.json.output }}",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        2048,
+        304
+      ],
+      "id": "0590a3cb-2199-42c4-90c8-aa51a18ea469",
+      "name": "Send a text message",
+      "webhookId": "5f51134d-7aba-4357-b261-21914d1c15fe",
+      "credentials": {
+        "telegramApi": {
+          "id": "htvlAhXoLLcfW39X",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "toolDescription": "Check if a property is available for booking on specific dates.\n\nParameters required:\n- property_name: Name of the property (e.g., \"The Glasshouse\", \"The River Cottage\", \"The Olive Lodge\", \"The Barn Loft\", \"The Potter's Cabin\", \"The Stargazer's Pod\")\n- check_in_date: Check-in date in YYYY-MM-DD format\n- check_out_date: Check-out date in YYYY-MM-DD format\n\nReturns whether the property is available or booked for those dates.",
+        "method": "POST",
+        "url": "https://n8n.datarunai.com/webhook/check-availability",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"property_name\": \"{{ $fromAI('property_name') }}\",\n  \"check_in_date\": \"{{ $fromAI('check_in_date') }}\",\n  \"check_out_date\": \"{{ $fromAI('check_out_date') }}\"\n}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.2,
+      "position": [
+        1488,
+        656
+      ],
+      "id": "31fd82b0-f8b1-4a99-b659-9d8760ccba4f",
+      "name": "Check Availability"
+    },
+    {
+      "parameters": {
+        "toolDescription": "Create a booking for a guest at a specific property.\n\nParameters required:\n- property_name: Name of the property (e.g., \"The Glasshouse\", \"The River Cottage\", \"The Olive Lodge\", \"The Barn Loft\", \"The Potter's Cabin\", \"The Stargazer's Pod\")\n- check_in_date: Check-in date in YYYY-MM-DD format\n- check_out_date: Check-out date in YYYY-MM-DD format\n- guest_name: Full name of the guest\n- guest_email: Guest's email address (optional)\n- guest_phone: Guest's phone number (optional)\n\nUse this tool after confirming availability. Creates a booking in the calendar and returns a confirmation.",
+        "method": "POST",
+        "url": "https://n8n.datarunai.com/webhook/create-booking",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"property_name\": \"{{ $fromAI('property_name') }}\",\n  \"check_in_date\": \"{{ $fromAI('check_in_date') }}\",\n  \"check_out_date\": \"{{ $fromAI('check_out_date') }}\",\n  \"guest_name\": \"{{ $fromAI('guest_name') }}\",\n  \"guest_email\": \"{{ $fromAI('guest_email') }}\",\n  \"guest_phone\": \"{{ $fromAI('guest_phone') }}\"\n}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.2,
+      "position": [
+        1632,
+        656
+      ],
+      "id": "77d7b9a4-5680-48af-bbab-a074d13d083d",
+      "name": "Create Booking"
+    },
+    {
+      "parameters": {
+        "toolDescription": "Cancel an existing booking for a guest.\n\nParameters required:\n- property_name: Name of the property (e.g., \"The Glasshouse\", \"The River Cottage\", \"The Olive Lodge\", \"The Barn Loft\", \"The Potter's Cabin\", \"The Stargazer's Pod\")\n- guest_name: Full name of the guest (extract from Recent Conversation if available)\n- check_in_date: Check-in date of the booking to cancel in YYYY-MM-DD format\n\nUse this tool when a guest asks to cancel their booking. Try to get guest name from Recent Conversation first.",
+        "method": "POST",
+        "url": "https://n8n.datarunai.com/webhook/cancel-booking",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"property_name\": \"={{ $fromAI('property_name') }}\",\n  \"guest_name\": \"={{ $fromAI('guest_name') }}\",\n  \"check_in_date\": \"={{ $fromAI('check_in_date') }}\"\n}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.2,
+      "position": [
+        1776,
+        656
+      ],
+      "id": "b3b79892-e157-4946-8145-5a3459547b5d",
+      "name": "Cancel Booking"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Anthropic Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Telegram Trigger": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get many rows": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Log Chat",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Insert User",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "Get many rows",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert User": {
+      "main": [
+        [
+          {
+            "node": "Log Chat",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Chat": {
+      "main": [
+        [
+          {
+            "node": "Minimal Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Minimal Context": {
+      "main": [
+        [
+          {
+            "node": "Keep 10",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Keep 10": {
+      "main": [
+        [
+          {
+            "node": "Load Minimal Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Load Minimal Context": {
+      "main": [
+        [
+          {
+            "node": "Sort",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sort": {
+      "main": [
+        [
+          {
+            "node": "Aggregate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supabase Vector Store1": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Embeddings OpenAI1": {
+      "ai_embedding": [
+        [
+          {
+            "node": "Supabase Vector Store1",
+            "type": "ai_embedding",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Create a row",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create a row": {
+      "main": [
+        [
+          {
+            "node": "Minimal Context (Return)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Minimal Context (Return)": {
+      "main": [
+        [
+          {
+            "node": "Keep ",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Keep ": {
+      "main": [
+        [
+          {
+            "node": "Send a text message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Availability": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Booking": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Cancel Booking": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "8d10188649342c4209d250d248325830920cc30c6f97796d721bf7a06a520016"
+  }
+}

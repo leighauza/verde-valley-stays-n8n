@@ -1,0 +1,276 @@
+{
+  "name": "Verde Valley (Cancel Booking)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "cancel-booking",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "93efb907-cb08-41d8-a95b-1aaa0c353021",
+      "name": "Webhook",
+      "webhookId": "5cdaf15e-693c-4b61-920c-d9953c1d5218"
+    },
+    {
+      "parameters": {
+        "jsCode": "const calendarMap = {\n  \"The Glasshouse\": \"YOUR_GLASSHOUSE_CALENDAR_ID\",\n  \"The River Cottage\": \"YOUR_RIVER_COTTAGE_CALENDAR_ID\",\n  \"The Olive Lodge\": \"YOUR_OLIVE_LODGE_CALENDAR_ID\",\n  \"The Barn Loft\": \"YOUR_BARN_LOFT_CALENDAR_ID\",\n  \"The Potter\u2019s Cabin\": \"8e8072d46292d0a7c0eb4e137d27f2ddd672d44b800eef410e59c985ffc85098@group.calendar.google.com \",\n  \"The Stargazer\u2019s Pod\": \"6a0a5f989f29ab88ff5d3e9e2010dd32505fe871a467760b73b25fbfe84b4eb5@group.calendar.google.com\"\n};\n\nconst property = $input.first().json.body.property_name;\nconst guestName = $input.first().json.body.guest_name;\nconst checkIn = $input.first().json.body.check_in_date;\n\nconst calendarId = calendarMap[$input.first().json.body.property_name];\n\nreturn [{\n  json: {\n    calendarId: calendarId,\n    property: property,\n    guestName: guestName,\n    checkIn: checkIn\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        208,
+        0
+      ],
+      "id": "6c2e0c9d-b55b-4a09-b8ab-94f12d5bbce0",
+      "name": "Map"
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "calendar": {
+          "__rl": true,
+          "value": "={{ $json.calendarId }}",
+          "mode": "id"
+        },
+        "limit": 10,
+        "timeMin": "={{ $json.checkIn }}",
+        "timeMax": "={{ new Date(new Date($json.checkIn).getTime() + 86400000).toISOString().split('T')[0] }}",
+        "options": {
+          "query": "={{ $json.guestName }}"
+        }
+      },
+      "type": "n8n-nodes-base.googleCalendar",
+      "typeVersion": 1.3,
+      "position": [
+        416,
+        0
+      ],
+      "id": "186a6bc6-b53a-4703-ba75-16e5aae12d5f",
+      "name": "Get many events",
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleCalendarOAuth2Api": {
+          "id": "YOUR_CREDENTIAL_ID",
+          "name": "Google Calendar account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "b04613be-1188-46e1-abd4-6acdf4476fce",
+              "leftValue": "={{ $input.first().json }}",
+              "rightValue": "",
+              "operator": {
+                "type": "object",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        624,
+        0
+      ],
+      "id": "6b0e587f-784f-4bb4-8cb3-412c607d93a5",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "operation": "delete",
+        "calendar": {
+          "__rl": true,
+          "value": "={{ $('Map').item.json.calendarId }}",
+          "mode": "id"
+        },
+        "eventId": "={{ $input.first().json.id }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleCalendar",
+      "typeVersion": 1.3,
+      "position": [
+        848,
+        -128
+      ],
+      "id": "24808d04-a2ca-45b0-9a99-9cff0fbb1a09",
+      "name": "Delete Booking",
+      "credentials": {
+        "googleCalendarOAuth2Api": {
+          "id": "YOUR_CREDENTIAL_ID",
+          "name": "Google Calendar account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const property = $('Map').first().json.property;\nconst guestName = $('Map').first().json.guestName;\nconst checkIn = $('Map').first().json.checkIn;\n\nreturn [{\n  json: {\n    success: false,\n    property: property,\n    guest_name: guestName,\n    check_in: checkIn,\n    message: `Sorry, I couldn't find a booking for ${guestName} at ${property} on ${checkIn}. Please check the details and try again, or contact us directly for assistance.`\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1056,
+        80
+      ],
+      "id": "5012e769-8439-4be8-af85-bd4051c982ff",
+      "name": "Booking Not Found"
+    },
+    {
+      "parameters": {
+        "jsCode": "const property = $('Map').first().json.property;\nconst guestName = $('Map').first().json.guestName;\nconst checkIn = $('Map').first().json.checkIn;\n\nreturn [{\n  json: {\n    success: true,\n    property: property,\n    guest_name: guestName,\n    check_in: checkIn,\n    message: `Booking cancelled successfully! ${guestName}'s reservation for ${property} on ${checkIn} has been cancelled.`\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1056,
+        -128
+      ],
+      "id": "cbe89d24-771a-4234-869e-c6290bc2dc06",
+      "name": "Booking Cancelled"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        1264,
+        -128
+      ],
+      "id": "ddba6f9e-bc1e-49eb-888d-304398e63b37",
+      "name": "Respond to Webhook"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        1264,
+        80
+      ],
+      "id": "9e9d9a92-5748-4415-b237-8c29a496e49e",
+      "name": "Respond to Webhook1"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Map",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Map": {
+      "main": [
+        [
+          {
+            "node": "Get many events",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get many events": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Delete Booking",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Booking Not Found",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Delete Booking": {
+      "main": [
+        [
+          {
+            "node": "Booking Cancelled",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Booking Cancelled": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Booking Not Found": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "43399d60-2ec4-44f2-ac36-7306aea09632",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "YOUR_INSTANCE_ID"
+  },
+  "id": "AghxcUH0qvejBCxt",
+  "tags": []
+}
