@@ -32,6 +32,7 @@ The system is made up of five n8n workflows:
 
 **Document Ingestion** — A Google Drive folder is watched for new files. When a document is added, it is automatically downloaded, split into chunks, embedded via OpenAI, and stored in Supabase as a vector store. Deleting a document from the folder removes it from the knowledge base.
 
+**Main Chatbot** — The core workflow. Every Telegram message triggers a pipeline that logs the message, manages a rolling 10-message context window per user, passes everything to a Claude AI agent, and sends the reply back.
 
 **Three booking sub-workflows** — Check Availability, Create Booking, and Cancel Booking each run as independent webhook-triggered workflows called by the AI agent as tools.
 
